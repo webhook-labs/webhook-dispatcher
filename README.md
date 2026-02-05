@@ -24,6 +24,22 @@ let _ = dispatcher.dispatch(event, vec!["orders".into()]).await;
 }
 ```
 
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+webhook-dispatcher = "0.1"
+```
+
+Enable optional features if needed:
+
+```toml
+[dependencies]
+webhook-dispatcher = { version = "0.1", features = ["http", "redis", "postgres", "metrics", "tracing"] }
+```
+
 ## Production Checklist
 
 1. Enable real HTTP delivery: `--features http`
