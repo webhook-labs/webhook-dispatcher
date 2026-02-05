@@ -1,9 +1,16 @@
 use std::time::Duration;
-use webhook_dispatcher::{Dispatcher, DispatcherConfig, Endpoint, Event};
+use webhook_dispatcher::{
+    Dispatcher,
+    DispatcherConfig,
+    Endpoint,
+    Event,
+    EndpointId,
+    IdempotencyKey,
+    TenantId,
+};
 
 #[tokio::test]
 async fn test_endpoint_isolation() {
-    // Create dispatcher with small limits
     let config = DispatcherConfig {
         max_in_flight: 2,
         shard_queue_size: 10,
@@ -14,7 +21,6 @@ async fn test_endpoint_isolation() {
     
     let dispatcher = Dispatcher::new(config);
     
-    // Register two endpoints with small limits
     let endpoint1 = Endpoint::new("slow", "http://slow.example.com")
         .with_max_concurrent(1);
     
@@ -24,11 +30,9 @@ async fn test_endpoint_isolation() {
     dispatcher.register_endpoint(endpoint1.clone()).await;
     dispatcher.register_endpoint(endpoint2.clone()).await;
     
-    // Send events to both endpoints
     let event1 = Event::new("event1", "payload1");
     let event2 = Event::new("event2", "payload2");
     
-    // Both should be accepted
     assert!(dispatcher.dispatch(
         event1,
         vec![endpoint1.id.clone()]
@@ -39,10 +43,53 @@ async fn test_endpoint_isolation() {
         vec![endpoint2.id.clone()]
     ).await.is_ok());
     
-    // Give workers time to process
     tokio::time::sleep(Duration::from_millis(200)).await;
     
-    // Shutdown
     let mut dispatcher = dispatcher;
     dispatcher.shutdown().await;
+}
+
+#[tokio::test]
+async fn test_invalid_endpoint_rejected() {
+    let dispatcher = Dispatcher::new(DispatcherConfig::default());
+    let event = Event::new("evt_invalid", "payload");
+
+    let result = dispatcher
+        .dispatch(event, vec![EndpointId("missing".to_string())])
+        .await;
+
+    assert!(result.is_err());
+}
+
+#[tokio::test]
+async fn test_tenant_mismatch_rejected() {
+    let dispatcher = Dispatcher::new(DispatcherConfig::default());
+
+    let endpoint = Endpoint::new("orders", "http://example.com")
+        .with_tenant_id("tenant_a");
+    dispatcher.register_endpoint(endpoint).await;
+
+    let event = Event::new("evt_tenant", "payload")
+        .with_tenant_id("tenant_b");
+
+    let result = dispatcher
+        .dispatch(event, vec![EndpointId("orders".to_string())])
+        .await;
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_idempotency_key_includes_tenant() {
+    let event_id = webhook_dispatcher::EventId("evt".to_string());
+    let endpoint_id = EndpointId("orders".to_string());
+
+    let key_no_tenant = IdempotencyKey::new(event_id.clone(), endpoint_id.clone(), None);
+    let key_with_tenant = IdempotencyKey::new(
+        event_id,
+        endpoint_id,
+        Some(TenantId("tenant_a".to_string())),
+    );
+
+    assert_ne!(key_no_tenant, key_with_tenant);
 }
