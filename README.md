@@ -42,14 +42,14 @@ Enable optional features if needed:
 webhook-dispatcher = { version = "0.1", features = ["http", "redis", "postgres", "metrics", "tracing"] }
 ```
 
-## Concepts (Plain English)
+## Concepts 
 
 - Endpoint: where a webhook goes and how it behaves.
 - Event: the data you want to send.
 - Dispatcher: the engine that schedules and delivers.
 - DLQ: where failures land so you can replay them.
 
-## API Guide (Friendly Walkthrough)
+## API Guide 
 
 1. Make a dispatcher (in-memory or durable).
 2. Register endpoints (where to send).
