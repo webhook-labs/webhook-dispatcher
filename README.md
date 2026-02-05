@@ -2,7 +2,7 @@
 
 An in-process webhook delivery engine with fairness, retries, DLQ, signatures, and pluggable durability.
 
-## Quickstart (10 Lines)
+## Quickstart 
 
 ```rust
 use webhook_dispatcher::{Dispatcher, DispatcherConfig, Endpoint, Event};
