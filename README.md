@@ -1,8 +1,10 @@
 # Webhook Dispatcher (Rust)
 
-An in-process webhook delivery engine with fairness, retries, DLQ, signatures, and pluggable durability.
+I kept running into the same problem: teams need reliable webhooks, but the choices are either build a full system or outsource it. This crate is the middle path. It gives you a production-ready webhook dispatcher that lives inside your app.
 
-## Quickstart 
+It focuses on the parts that actually hurt in real systems: fairness, retries, DLQ, signatures, rate limits, and durability. No hosted service required.
+
+## Quickstart
 
 ```rust
 use webhook_dispatcher::{Dispatcher, DispatcherConfig, Endpoint, Event};
@@ -11,16 +13,16 @@ use webhook_dispatcher::{Dispatcher, DispatcherConfig, Endpoint, Event};
 async fn main() {
     let dispatcher = Dispatcher::new(DispatcherConfig::default());
 
-let endpoint = Endpoint::new("orders", "https://example.com/webhook")
-    .with_secret(b"supersecret")
-    .with_tenant_id("tenant_a")
-    .with_rate_limit(100, 200);
+    let endpoint = Endpoint::new("orders", "https://example.com/webhook")
+        .with_secret(b"supersecret")
+        .with_tenant_id("tenant_a")
+        .with_rate_limit(100, 200);
 
     dispatcher.register_endpoint(endpoint).await;
 
-let event = Event::new("evt_123", r#"{"id":123}"#.as_bytes())
-    .with_tenant_id("tenant_a");
-let _ = dispatcher.dispatch(event, vec!["orders".into()]).await;
+    let event = Event::new("evt_123", r#"{"id":123}"#.as_bytes())
+        .with_tenant_id("tenant_a");
+    let _ = dispatcher.dispatch(event, vec!["orders".into()]).await;
 }
 ```
 
@@ -40,13 +42,28 @@ Enable optional features if needed:
 webhook-dispatcher = { version = "0.1", features = ["http", "redis", "postgres", "metrics", "tracing"] }
 ```
 
+## Concepts (Plain English)
+
+- Endpoint: where a webhook goes and how it behaves.
+- Event: the data you want to send.
+- Dispatcher: the engine that schedules and delivers.
+- DLQ: where failures land so you can replay them.
+
+## API Guide (Friendly Walkthrough)
+
+1. Make a dispatcher (in-memory or durable).
+2. Register endpoints (where to send).
+3. Dispatch events (what to send).
+4. Verify on the receiver.
+5. Check status or replay from DLQ if needed.
+
 ## Production Checklist
 
 1. Enable real HTTP delivery: `--features http`
-2. Use a durable backend for restarts: Redis or Postgres
+2. Use a durable backend: Redis or Postgres
 3. Choose an overflow policy: `Block` or `SpillToStorage`
-4. Set rate limits (endpoint + tenant) to protect downstreams
-5. Use signature verification on the receiver side
+4. Set rate limits (endpoint + tenant)
+5. Verify signatures on the receiver side
 
 ## Receiver Verification
 
@@ -76,7 +93,7 @@ verify_webhook_request(
 - Per-endpoint retry policy overrides
 - HMAC signatures and timestamp support
 - Per-endpoint rate limiting
-- Multi-tenant isolation (tenant id on endpoints/events)
+- Multi-tenant isolation
 - Pluggable storage (in-memory, Redis, Postgres)
 - Metrics and tracing feature flags
 
@@ -172,10 +189,10 @@ let status = dispatcher.delivery_status(&IdempotencyKey::new(
 )).await;
 ```
 
-## CLI/Usage Notes
+## Usage Notes
 
-- This is a library; you call it from your app.
-- To test real delivery, enable `http` and point to a real URL.
+- This is a library. You call it from your app.
+- For real delivery, enable `http` and point to a real URL.
 
 ## Example Configs (Different Scales)
 
@@ -244,16 +261,16 @@ let cfg = DispatcherConfig {
 
 ## Troubleshooting
 
-### I’m not seeing webhooks delivered
+### I am not seeing webhooks delivered
 - Ensure you ran with `--features http`.
 - Check endpoint URL and network access.
 - If you see DLQ entries, replay them or check the status.
 
-### I’m getting backpressure errors
+### I am getting backpressure errors
 - Increase `shard_queue_size` or `max_in_flight`.
 - Use `OverflowPolicy::Block` for safer behavior.
 
-### Retries don’t seem to happen
+### Retries do not seem to happen
 - Confirm `max_retries` is set on the endpoint.
 - Verify that the failure is retryable (4xx is non-retryable).
 
