@@ -1,0 +1,37 @@
+[package]
+name = "webhook-dispatcher"
+version = "0.1.0"
+edition = "2024"
+description = "In-process webhook delivery engine with retries, DLQ, signatures, rate limits, and pluggable storage."
+license = "MIT"
+repository = "https://github.com/webhook-labs/webhook-dispatcher"
+readme = "README.md"
+keywords = ["webhooks", "queue", "retries", "dlq", "rust"]
+categories = ["web-programming", "asynchronous"]
+
+
+[dependencies]
+tokio = { version = "1.0", features = ["full"] }
+thiserror = "1.0"
+async-trait = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hmac = "0.12"
+sha2 = "0.10"
+hex = "0.4"
+fastrand = "2.0"
+redis = { version = "0.27", features = ["tokio-comp"], optional = true }
+tokio-postgres = { version = "0.7", optional = true, features = ["with-serde_json-1"] }
+metrics = { version = "0.24", optional = true }
+tracing = { version = "0.1", optional = true }
+reqwest = { version = "0.12", optional = true, features = ["json", "rustls-tls"] }
+
+[dev-dependencies]
+tokio = { version = "1.0", features = ["full"] }
+
+[features]
+redis = ["dep:redis"]
+postgres = ["dep:tokio-postgres"]
+metrics = ["dep:metrics"]
+tracing = ["dep:tracing"]
+http = ["dep:reqwest"]
